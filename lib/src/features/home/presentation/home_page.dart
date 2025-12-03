@@ -95,13 +95,14 @@ class _HomePageState extends State<HomePage> {
         width: _fabSize,
         height: _fabSize,
         child: FloatingActionButton(
-          onPressed: () => GoRouter.of(context).go('/problem/new'),
+          onPressed: () => context.go('/problems/new'),
           backgroundColor: Colors.green.shade700,
           elevation: 6,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           child: const Icon(Icons.add, size: 36),
         ),
       ),
+
 
       // Use SafeArea but let bottom be handled by padding (we add bottom padding ourselves)
       body: SafeArea(
@@ -318,9 +319,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(width: 24),
                     _NavItem(
-                      icon: Icons.group_outlined,
-                      label: 'Community',
-                      onPressed: () {},
+                      icon: Icons.report_gmailerrorred_outlined,
+                      label: 'Reports',
+                      onPressed: () => GoRouter.of(context).go('/my-reports'),
                     ),
                   ],
                 ),
@@ -328,16 +329,17 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     _NavItem(
-                      icon: Icons.report_gmailerrorred_outlined,
-                      label: 'Reports',
-                      onPressed: () => GoRouter.of(context).go('/my-reports'),
+                      icon: Icons.notifications_outlined,
+                      label: 'Notifications',
+                      onPressed: () => GoRouter.of(context).go('/notifications'),
                     ),
                     const SizedBox(width: 24),
                     _NavItem(
                       icon: Icons.person_outline,
                       label: 'Profile',
-                      onPressed: () {},
+                      onPressed: () => context.go('/profile'),
                     ),
+
                   ],
                 )
               ],
