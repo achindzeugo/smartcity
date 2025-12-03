@@ -229,8 +229,17 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F9),
       appBar: AppBar(
-        leading: BackButton(color: Colors.black87, onPressed: () => context.pop()),
-        title: Text("Statut d'incidents", style: titleStyle),
+        leading: BackButton(
+          color: Colors.black87,
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+        title: Text("Mes signalements", style: titleStyle),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
