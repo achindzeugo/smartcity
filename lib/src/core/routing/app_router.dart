@@ -4,13 +4,8 @@ import '../../features/auth/presentation/login/login_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/problems/presentation/problem_detail_page.dart';
 import '../../features/home/presentation/all_problems_page.dart';
-import '../../features/home/presentation/mes_signalements_page.dart';
-import '../../features/problems/presentation/new_problem_page.dart';
-import '../../features/home/presentation/profile_page.dart';
-import '../../features/home/presentation/notifications_page.dart';
-
-
-
+// import '../../features/problems/presentation/my_reports_page.dart'; //
+import '../../features/home/presentation/mes_signalements_page.dart'; //'
 
 
 final GoRouter appRouter = GoRouter(
@@ -40,24 +35,11 @@ final GoRouter appRouter = GoRouter(
       builder: (_, __) => const AllProblemsPage(),
     ),
 
+    // ⭐ NEW : Mes signalements (pending, treated)
     GoRoute(
       path: '/my-reports',
       builder: (_, __) => MesSignalementsPage(currentUserId: 'user1'),
-    ),
 
-    GoRoute(
-      path: '/problems/new',          // <-- ici le nouveau path
-      builder: (_, __) => const NewProblemPage(),
-    ),
-
-    GoRoute(
-      path: '/profile',
-      builder: (_, __) => const ProfilePage(),
-    ),
-
-    GoRoute(
-      path: '/notifications',
-      builder: (_, __) => const NotificationsPage(),
     ),
   ],
 );

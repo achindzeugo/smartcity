@@ -100,9 +100,9 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
     final problem = _problem!;
 
     final List<String> images = [
-      'assets/images/onboarding1.png',
+      'assets/images/onboarding1.jpg',
       'assets/images/onboarding2.jpg',
-      'assets/images/onboarding1.png',
+      'assets/images/onboarding3.jpg',
     ];
 
     final double lat = problem.latitude;
