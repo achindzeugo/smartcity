@@ -1,18 +1,16 @@
+// lib/src/features/problems/data/problem_model.dart
+
 class Problem {
   final String id;
   final String title;
   final String description;
   final String category;
-
   final double latitude;
   final double longitude;
-
   final DateTime createdAt;
-
-  // 🔥 NEW fields
-  final String reporterId;   // l’utilisateur qui a signalé
-  final String status;       // pending | treated
-  final List<String> images; // liste d’images (paths ou URLs)
+  final String reporterId;
+  final String status;
+  final List<String> images;
 
   Problem({
     required this.id,
@@ -22,24 +20,34 @@ class Problem {
     required this.latitude,
     required this.longitude,
     required this.createdAt,
-
-    // NEW
     required this.reporterId,
-    required this.status,
-    required this.images,
+    this.status = 'pending',
+    this.images = const [],
   });
 
-  // OPTIONAL : toJson si tu veux sauvegarder plus tard
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'category': category,
-    'latitude': latitude,
-    'longitude': longitude,
-    'createdAt': createdAt.toIso8601String(),
-    'reporterId': reporterId,
-    'status': status,
-    'images': images,
-  };
+  Problem copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? category,
+    double? latitude,
+    double? longitude,
+    DateTime? createdAt,
+    String? reporterId,
+    String? status,
+    List<String>? images,
+  }) {
+    return Problem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAt: createdAt ?? this.createdAt,
+      reporterId: reporterId ?? this.reporterId,
+      status: status ?? this.status,
+      images: images ?? this.images,
+    );
+  }
 }

@@ -4,16 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
-// Chemin relatif corrigé : de lib/src/shared/widgets -> lib/src/features/problems/data/problem_model.dart
 import '../../features/problems/data/problem_model.dart';
 
-/// ProblemList - widget réutilisable pour afficher une liste de Problem
 class ProblemList extends StatelessWidget {
   final List<Problem> items;
-  final int? limit; // si non null, affiche seulement les [limit] premiers éléments
+  final int? limit;
   final bool showTrailingIcon;
-  final ScrollPhysics? physics; // Rendre le défilement configurable
-  final EdgeInsetsGeometry? padding; // Rendre le padding configurable
+  final ScrollPhysics? physics;
+  final EdgeInsetsGeometry? padding;
 
   const ProblemList({
     Key? key,
@@ -28,7 +26,6 @@ class ProblemList extends StatelessWidget {
   Widget build(BuildContext context) {
     final list = (limit != null && limit! < items.length) ? items.sublist(0, limit!) : items;
 
-    // Images à utiliser en boucle
     final List<String> incidentImages = [
       'assets/images/onboarding1.png',
       'assets/images/onboarding2.jpg',
@@ -36,13 +33,13 @@ class ProblemList extends StatelessWidget {
     ];
 
     return ListView.separated(
-      physics: physics, // Applique la physique de défilement fournie
+      physics: physics,
       padding: padding ?? const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       itemCount: list.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final p = list[i];
-        final imagePath = incidentImages[i % incidentImages.length]; // Choix de l'image en boucle
+        final imagePath = incidentImages[i % incidentImages.length];
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 1.5,
@@ -69,11 +66,11 @@ class ProblemList extends StatelessWidget {
             ),
             trailing: showTrailingIcon
                 ? IconButton(
-              icon: const Icon(Icons.arrow_forward_rounded),
-              onPressed: () => GoRouter.of(context).go('/problem/${p.id}'),
-            )
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    onPressed: () => context.push('/problem/${p.id}'), // PUSH ici
+                  )
                 : null,
-            onTap: () => GoRouter.of(context).go('/problem/${p.id}'),
+            onTap: () => context.push('/problem/${p.id}'), // PUSH ici
           ),
         );
       },

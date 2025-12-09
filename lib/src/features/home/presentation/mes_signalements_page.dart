@@ -7,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../problems/data/problem_repository.dart';
 import '../../problems/data/problem_model.dart';
 
-/// Page "Mes signalements" (liste des problèmes signalés par l'utilisateur)
-/// Usage de test: MesSignalementsPage(currentUserId: 'user1')
 class MesSignalementsPage extends StatefulWidget {
   final String currentUserId;
 
@@ -34,14 +32,12 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
   }
 
   void _load() {
-    // synchronous repo (mock). Si async, adapte en Future/await.
     setState(() {
       _allForUser = _repo.getByReporter(widget.currentUserId);
       _loading = false;
     });
   }
 
-  /// 0 = All, 1 = Pending, 2 = Treated
   List<Problem> _filterForTab(int index) {
     if (index == 0) return _allForUser;
     if (index == 1) {
@@ -90,7 +86,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     );
   }
 
-  /// Convertit le statut en valeur 0..1 pour la barre de progression
   double _statusProgress(String status) {
     final s = status.toLowerCase();
     if (s == 'pending') return 0.25;
@@ -106,7 +101,7 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     final progress = _statusProgress(p.status);
 
     return InkWell(
-      onTap: () => context.go('/problem/${p.id}'),
+      onTap: () => context.push('/problem/${p.id}'),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(8),
@@ -117,7 +112,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
         ),
         child: Row(
           children: [
-            // IMAGE
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: (p.images.isNotEmpty)
@@ -127,12 +121,10 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
 
             const SizedBox(width: 12),
 
-            // DETAILS column
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // title + more icon row
                   Row(
                     children: [
                       Expanded(
@@ -144,14 +136,11 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
                   ),
                   const SizedBox(height: 8),
 
-                  // description small
                   Text(p.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
                   const SizedBox(height: 10),
 
-                  // progress + meta row
                   Row(
                     children: [
-                      // rounded progress bar
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
@@ -165,7 +154,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
                       ),
                       const SizedBox(width: 10),
 
-                      // date small
                       Row(
                         children: [
                           Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
@@ -181,7 +169,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
 
             const SizedBox(width: 10),
 
-            // right column: status label + delete
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -226,56 +213,87 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
   Widget build(BuildContext context) {
     final titleStyle = GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F9),
-      appBar: AppBar(
-        leading: BackButton(color: Colors.black87, onPressed: () => context.pop()),
-        title: Text("Statut d'incidents", style: titleStyle),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(78),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6)],
-              ),
-              padding: const EdgeInsets.all(4),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(color: Colors.green.shade700, borderRadius: BorderRadius.circular(22)),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 20),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.black54,
-                tabs: [
-                  Tab(child: Text('All', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                  Tab(child: Text('Pending', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                  Tab(child: Text('Treated', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                ],
+    return WillPopScope(
+      // ✅ Gestion du bouton BACK du téléphone
+      onWillPop: () async {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F7F9),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            // ✅ Même logique pour la flèche retour
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+          title: Text("Mes signalements", style: titleStyle),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(78),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 6,
+                    )
+                  ],
+                ),
+                padding: const EdgeInsets.all(4),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: Colors.green.shade700,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.black54,
+                  tabs: [
+                    Tab(child: Text('All', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
+                    Tab(child: Text('Pending', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
+                    Tab(child: Text('Treated', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-        child: TabBarView(
-          controller: _tabController,
-          children: List.generate(3, (i) {
-            final list = _filterForTab(i);
-            return _buildList(list);
-          }),
+
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : SafeArea(
+          child: TabBarView(
+            controller: _tabController,
+            children: List.generate(3, (i) {
+              final list = _filterForTab(i);
+              return _buildList(list);
+            }),
+          ),
         ),
       ),
     );
   }
+
 
   @override
   void dispose() {

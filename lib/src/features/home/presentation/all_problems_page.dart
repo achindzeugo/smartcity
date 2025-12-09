@@ -37,13 +37,7 @@ class _AllProblemsPageState extends State<AllProblemsPage> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              context.pop();
-            } else {
-              context.go('/home');
-            }
-          },
+          onPressed: () => context.pop(),
         ),
       ),
       body: ProblemList(

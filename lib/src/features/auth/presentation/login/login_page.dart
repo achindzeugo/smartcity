@@ -65,9 +65,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
-    // Ici, tu peux appeler ton API réel (Dio) pour authentifier via téléphone.
-    // Exemple de fallback : accepter n'importe quel contenu numérique comme "tel"
-    // mais pour l'instant on indique une erreur si aucun des cas précédents n'est vrai.
+    // Ici, tu peux appeler ton API réel
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Numéro ou mot de passe incorrect')),
@@ -85,15 +83,10 @@ class _LoginPageState extends State<LoginPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () {
-            // si la pile native peut pop, on pop, sinon on navigue vers /home (ou '/')
-            if (Navigator.of(context).canPop()) {
-              context.pop();
-            } else {
-              context.go('/home'); // ou context.go('/') selon ton flow attendu
-            }
+            // Retour vers onboarding UNIQUEMENT
+            context.go('/');
           },
         ),
-
       ),
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -153,7 +146,8 @@ class _LoginPageState extends State<LoginPage> {
                           icon: Icon(
                             _obscure ? Icons.visibility_off : Icons.visibility,
                           ),
-                          onPressed: () => setState(() => _obscure = !_obscure),
+                          onPressed: () =>
+                              setState(() => _obscure = !_obscure),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -170,7 +164,8 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             Checkbox(
                               value: _remember,
-                              onChanged: (v) => setState(() => _remember = v ?? false),
+                              onChanged: (v) =>
+                                  setState(() => _remember = v ?? false),
                               activeColor: primary,
                             ),
                             const SizedBox(width: 4),
@@ -180,7 +175,9 @@ class _LoginPageState extends State<LoginPage> {
                         TextButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Reset non implémenté')),
+                              const SnackBar(
+                                content: Text('Reset non implémenté'),
+                              ),
                             );
                           },
                           child: const Text('Mot de passe oublié ?'),
@@ -206,10 +203,15 @@ class _LoginPageState extends State<LoginPage> {
                             ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child:
-                          CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                            : const Text('Se connecter', style: TextStyle(fontSize: 16)),
+                            : const Text(
+                          'Se connecter',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
 
@@ -228,6 +230,30 @@ class _LoginPageState extends State<LoginPage> {
                         'Mode dev: laissez les champs vides pour vous connecter automatiquement, ou utilisez client/client.',
                         style: TextStyle(fontSize: 13),
                       ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 👉 Lien vers la création de compte
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Pas encore de compte ? ',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        GestureDetector(
+                          onTap: () => context.go('/register'),
+                          child: Text(
+                            'Créer un compte',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
