@@ -8,9 +8,9 @@ class Problem {
   final double latitude;
   final double longitude;
   final DateTime createdAt;
-  final String reporterId; //  (e.g., 'user1')
-  final String status; // (e.g., 'pending', 'in_progress', 'treated')
-  final List<String> images; // list of image paths/urls
+  final String reporterId;
+  final String status;
+  final List<String> images;
 
   Problem({
     required this.id,

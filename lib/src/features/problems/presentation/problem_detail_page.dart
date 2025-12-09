@@ -24,7 +24,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
   bool _loading = true;
   int _imageIndex = 0;
 
-  // Map controller
   final MapController _mapController = MapController();
 
   @override
@@ -53,7 +52,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
     final Uri googleUri = Uri.parse('google.navigation:q=$lat,$lng');
     final Uri mapsUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng($labelEncoded)');
 
-    // try native google navigation first, else fallback to web link
     try {
       if (await canLaunchUrl(googleUri)) {
         await launchUrl(googleUri, mode: LaunchMode.externalApplication);
@@ -84,13 +82,7 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black87),
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                context.pop();
-              } else {
-                context.go('/home');
-              }
-            },
+            onPressed: () => context.pop(),
           ),
         ),
         body: const Center(child: Text('Problème non trouvé')),
@@ -99,11 +91,7 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
 
     final problem = _problem!;
 
-    final List<String> images = [
-      'assets/images/onboarding1.png',
-      'assets/images/onboarding2.jpg',
-      'assets/images/onboarding1.png',
-    ];
+    final List<String> images = problem.images.isNotEmpty ? problem.images : ['assets/images/onboarding1.jpg'];
 
     final double lat = problem.latitude;
     final double lng = problem.longitude;
@@ -114,7 +102,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // images PageView
             SizedBox(
               height: 260,
               child: Stack(
@@ -137,7 +124,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
                     },
                   ),
 
-                  // back
                   Positioned(
                     left: 18,
                     top: 18,
@@ -147,18 +133,11 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
                       elevation: 2,
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back),
-                        onPressed: () {
-                          if (Navigator.of(context).canPop()) {
-                            context.pop();
-                          } else {
-                            context.go('/home');
-                          }
-                        },
+                        onPressed: () => context.pop(),
                       ),
                     ),
                   ),
 
-                  // indicators
                   Positioned(
                     bottom: 18,
                     left: 0,
@@ -185,7 +164,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
               ),
             ),
 
-            // details
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8),
@@ -244,7 +222,7 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
                             leading: Container(width: 64, height: 64, decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.image, color: Colors.grey)),
                             title: Text('Service Example ${idx + 1}'),
                             subtitle: Row(children: const [Icon(Icons.location_on, size: 12, color: Colors.grey), SizedBox(width: 4), Flexible(child: Text('Localisation exemple', style: TextStyle(fontSize: 12)))]),
-                            trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('\$40'), const SizedBox(height: 8), Container(width: 36, height: 36, decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.chevron_right, color: Colors.white))]),
+                            trailing: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('\$40'), const SizedBox(height: 4), Container(width: 36, height: 36, decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.chevron_right, color: Colors.white))]),
                             onTap: () {},
                           ),
                         );
@@ -318,7 +296,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
     );
   }
 
-  // Essaye de lire une valeur d'un Map de manière sûre
   double? _safeDouble(Problem p, String key) {
     try {
       final value = (p as dynamic).toJson()[key];

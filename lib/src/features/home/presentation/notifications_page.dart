@@ -13,7 +13,7 @@ class AppNotification {
   final DateTime date;
   final bool unread;
   final NotificationType type;
-  final String? problemId; // pour ouvrir le détail d’un problème
+  final String? problemId;
 
   AppNotification({
     required this.id,
@@ -39,7 +39,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    // 🔥 Mock – tu remplaceras ça par tes vraies données plus tard
     _items = [
       AppNotification(
         id: 'n1',
@@ -70,20 +69,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   void _markAllRead() {
     setState(() {
-      _items = _items.map((n) => AppNotification(
-        id: n.id,
-        title: n.title,
-        message: n.message,
-        date: n.date,
-        type: n.type,
-        problemId: n.problemId,
-        unread: false,
-      )).toList();
+      _items = _items
+          .map(
+            (n) => AppNotification(
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          date: n.date,
+          type: n.type,
+          problemId: n.problemId,
+          unread: false,
+        ),
+      )
+          .toList();
     });
   }
 
   void _openNotification(AppNotification n) {
-    // Marquer comme lu
     setState(() {
       _items = _items.map((e) {
         if (e.id == n.id) {
@@ -101,9 +103,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }).toList();
     });
 
-    // Si liée à un problème → ouvrir la page détail
     if (n.problemId != null) {
-      context.go('/problem/${n.problemId}');
+      context.push('/problem/${n.problemId}');
     }
   }
 
@@ -112,47 +113,69 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final bg = const Color(0xFFF5F5F7);
     final green = Colors.green.shade800;
 
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Notifications',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            color: Colors.black87,
-          ),
-        ),
-        leading: const SizedBox.shrink(), // pas de flèche, on est dans le tab bottom
-        actions: [
-          TextButton(
-            onPressed: _items.any((n) => n.unread) ? _markAllRead : null,
-            child: Text(
-              'Tout lire',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: _items.any((n) => n.unread)
-                    ? green
-                    : Colors.grey.shade400,
-              ),
+    return WillPopScope(
+      // 👉 bouton back du téléphone
+      onWillPop: () async {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: bg,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          title: Text(
+            'Notifications',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              fontSize: 18,
+              color: Colors.black87,
             ),
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _items.isEmpty
-          ? _buildEmpty()
-          : ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: _items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final n = _items[index];
-          return _buildNotificationCard(n, green);
-        },
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            // 👉 même logique pour la flèche
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: _items.any((n) => n.unread) ? _markAllRead : null,
+              child: Text(
+                'Tout lire',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: _items.any((n) => n.unread)
+                      ? green
+                      : Colors.grey.shade400,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: _items.isEmpty
+            ? _buildEmpty()
+            : ListView.separated(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          itemCount: _items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final n = _items[index];
+            return _buildNotificationCard(n, green);
+          },
+        ),
       ),
     );
   }
@@ -162,7 +185,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.notifications_none, size: 60, color: Colors.grey.shade400),
+          Icon(Icons.notifications_none,
+              size: 60, color: Colors.grey.shade400),
           const SizedBox(height: 10),
           Text(
             'Aucune notification',
@@ -212,7 +236,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icône + point vert
               Stack(
                 children: [
                   Container(
@@ -240,8 +263,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 ],
               ),
               const SizedBox(width: 12),
-
-              // Texte
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

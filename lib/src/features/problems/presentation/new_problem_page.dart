@@ -190,13 +190,7 @@ class _NewProblemPageState extends State<NewProblemPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/home');
-            }
-          },
+          onPressed: () => context.pop(),
         ),
         title: Text('Formulaire de signalement', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
         centerTitle: true,

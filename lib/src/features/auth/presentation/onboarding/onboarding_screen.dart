@@ -58,146 +58,197 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final textScale = MediaQuery.of(context).textScaleFactor;
+
+    final bool isSmallHeight = size.height < 700;      // petits téléphones
+    final bool isVerySmallHeight = size.height < 600;  // très petits / vieux téléphones
+
     final int total = pages.length;
     final double progress = (_pageIndex + 1) / total;
+
+    // padding et tailles qui s’adaptent à la largeur / hauteur
+    final double horizontalPadding = size.width * 0.06; // ~24 sur 400px
+    final double verticalPadding = size.height * 0.02;  // ~16 sur 800px
+
+    final double titleFontSize = isSmallHeight ? 20 : 22;
+    final double descFontSize = isSmallHeight ? 14 : 15;
+    final double buttonFontSize = isSmallHeight ? 14 : 16;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            // PAGEVIEW (image + curved bottom)
-            Expanded(
-              flex: 6,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: pages.length,
-                onPageChanged: (i) => setState(() => _pageIndex = i),
-                itemBuilder: (context, index) {
-                  final item = pages[index];
-                  return Column(
-                    children: [
-                      // Image with curved bottom using ClipPath
-                      Expanded(
-                        child: ClipPath(
-                          clipper: BottomWaveClipper(),
-                          child: Image.asset(
-                            item.image,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double maxH = constraints.maxHeight;
+            final bool compact = maxH < 650;
+
+            return Column(
+              children: [
+                // --- Partie image ---
+                Expanded(
+                  flex: compact ? 5 : 6,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: pages.length,
+                    onPageChanged: (i) => setState(() => _pageIndex = i),
+                    itemBuilder: (context, index) {
+                      final item = pages[index];
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: ClipPath(
+                              clipper: BottomWaveClipper(),
+                              child: Image.asset(
+                                item.image,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            // CONTENT (title, desc, indicators, progress, buttons)
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 6),
-                    Text(
-                      pages[_pageIndex].title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        height: 1.25,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      pages[_pageIndex].description,
-                      textAlign: TextAlign.center,
-                      style:
-                      const TextStyle(fontSize: 15, color: Colors.grey),
-                    ),
-                    const Spacer(),
-
-                    // Linear progress + dots
-                    LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 6,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.green.shade700),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        pages.length,
-                            (i) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 250),
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          width: (_pageIndex == i) ? 20 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: (_pageIndex == i)
-                                ? Colors.green.shade700
-                                : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _onNext,
-                        child: Text(
-                            _pageIndex == pages.length - 1 ? 'Get Started' : 'Continue'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: _onSkip,
-                          child: const Text('Skip'),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () {
-                            // If you want to allow user to go back to previous page:
-                            if (_pageIndex > 0) {
-                              _pageController.previousPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeInOut);
-                            }
-                          },
-                          child: Text(
-                            'Back',
-                            style: TextStyle(color: Colors.green.shade700),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ),
-          ],
+
+                // --- Partie contenu (titre, texte, boutons) ---
+                Expanded(
+                  flex: compact ? 5 : 4,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                      vertical: verticalPadding,
+                    ),
+                    child: SingleChildScrollView(
+                      // 👆 important pour éviter les overflow sur petits écrans ou gros textes
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: isSmallHeight ? 4 : 8),
+                          Text(
+                            pages[_pageIndex].title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: titleFontSize / textScale,
+                              fontWeight: FontWeight.bold,
+                              height: 1.25,
+                            ),
+                          ),
+                          SizedBox(height: isSmallHeight ? 8 : 12),
+                          Text(
+                            pages[_pageIndex].description,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: descFontSize / textScale,
+                              color: Colors.grey[700],
+                              height: 1.35,
+                            ),
+                          ),
+
+                          SizedBox(height: isVerySmallHeight ? 8 : 16),
+
+                          // Progress bar
+                          LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 6,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.green.shade700,
+                            ),
+                          ),
+                          SizedBox(height: isSmallHeight ? 8 : 12),
+
+                          // Dots
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              pages.length,
+                                  (i) => AnimatedContainer(
+                                duration:
+                                const Duration(milliseconds: 250),
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 6),
+                                width: (_pageIndex == i) ? 20 : 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: (_pageIndex == i)
+                                      ? Colors.green.shade700
+                                      : Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: isSmallHeight ? 12 : 18),
+
+                          // Button principal
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade700,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: isSmallHeight ? 12 : 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _onNext,
+                              child: Text(
+                                _pageIndex == pages.length - 1
+                                    ? 'Get Started'
+                                    : 'Continue',
+                                style: TextStyle(
+                                  fontSize: buttonFontSize / textScale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(height: isSmallHeight ? 8 : 12),
+
+                          // Skip / Back
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: _onSkip,
+                                child: const Text('Skip'),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  if (_pageIndex > 0) {
+                                    _pageController.previousPage(
+                                      duration: const Duration(
+                                          milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  }
+                                },
+                                child: Text(
+                                  'Back',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: isVerySmallHeight ? 4 : 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -215,15 +266,12 @@ class _OnboardData {
   });
 }
 
-/// Custom clipper to make a nice curved bottom on the image.
-/// Ajuste les control points si tu veux une courbe plus/moins prononcée.
 class BottomWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final Path path = Path();
     path.lineTo(0, size.height - 60);
 
-    // première courbe (vers le centre)
     path.quadraticBezierTo(
       size.width * 0.25,
       size.height,
@@ -231,7 +279,6 @@ class BottomWaveClipper extends CustomClipper<Path> {
       size.height,
     );
 
-    // deuxième courbe (vers la droite)
     path.quadraticBezierTo(
       size.width * 0.75,
       size.height,
