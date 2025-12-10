@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../shared/widgets/problem_list.dart';
+import '../../problems/data/problem_model.dart';
 import '../../problems/data/problem_repository.dart';
 
 class AllProblemsPage extends StatefulWidget {
@@ -15,9 +16,29 @@ class AllProblemsPage extends StatefulWidget {
 }
 
 class _AllProblemsPageState extends State<AllProblemsPage> {
+  final ProblemRepository _repo = ProblemRepository();
+
+  late final List<Problem> _allProblems;
+  int _visibleCount = 20; // on commence avec 20
+
+  @override
+  void initState() {
+    super.initState();
+    _allProblems = _repo.filterByCategory(null);
+    if (_allProblems.length < _visibleCount) {
+      _visibleCount = _allProblems.length;
+    }
+  }
+
+  void _loadMore() {
+    setState(() {
+      _visibleCount = (_visibleCount + 20).clamp(0, _allProblems.length);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final allProblems = ProblemRepository().filterByCategory(null);
+    final bool canLoadMore = _visibleCount < _allProblems.length;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -37,13 +58,53 @@ class _AllProblemsPageState extends State<AllProblemsPage> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
       ),
-      body: ProblemList(
-        items: allProblems,
-        limit: null, // show all items
-        showTrailingIcon: true,
+      body: Column(
+        children: [
+          // Liste paginée
+          Expanded(
+            child: ProblemList(
+              items: _allProblems,
+              limit: _visibleCount,                //  20, 40, 60...
+              showTrailingIcon: true,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+            ),
+          ),
+
+          // Bouton "Load more"
+          if (canLoadMore)
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _loadMore,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  child: Text(
+                    'Load more',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -2,6 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:smartcity/src/core/services/supabase_service.dart';
+import 'package:smartcity/src/core/services/session_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,23 +16,30 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneCtrl = TextEditingController();
+
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+
   bool _obscure = true;
   bool _loading = false;
   bool _remember = false;
 
   @override
   void dispose() {
-    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
-  String? _validatePhone(String? v) {
-    // Accept any non-empty for now; in prod add a stricter phone regex
-    if (v == null || v.isEmpty) return null; // allow empty in dev mode
-    if (v.length < 3) return 'Numéro invalide';
+  String? _validateEmail(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Email obligatoire';
+    if (!v.contains('@')) return 'Email invalide';
+    return null;
+  }
+
+  String? _validatePassword(String? v) {
+    if (v == null || v.isEmpty) return 'Mot de passe obligatoire';
+    if (v.length < 3) return 'Mot de passe trop court';
     return null;
   }
 
@@ -37,45 +48,98 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _loading = true);
 
-    final phone = _phoneCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
 
-    // Simuler délai réseau
-    await Future.delayed(const Duration(milliseconds: 700));
+    // 🔧 Mode dev : si tout est vide → accès direct
+    if (email.isEmpty && password.isEmpty) {
+      await Future.delayed(const Duration(milliseconds: 300));
 
-    setState(() => _loading = false);
+      // on se crée un user "fake" pour la session
+      SessionService.setUser({
+        'id': 'dev-user',
+        'email': 'dev@example.com',
+        'nom': 'Utilisateur démo',
+        'role': 'client',
+        'avatar_url': null,
+        'last_login': DateTime.now().toIso8601String(),
+      });
 
-    // Mode dev : si les champs sont vides -> authoriser la connexion
-    if (phone.isEmpty && password.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Connexion (mode dev)')));
-        context.go('/home'); // adapte la route home
-        return;
-      }
-    }
-
-    // Creds de test : client / client (phone = client, password = client)
-    if (phone == 'client' && password == 'client') {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Connexion réussie')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Connexion (mode dev)')),
+        );
         context.go('/home');
-        return;
       }
+      setState(() => _loading = false);
+      return;
     }
 
-    // Ici, tu peux appeler ton API réel
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Numéro ou mot de passe incorrect')),
-      );
+    try {
+      final client = SupabaseService.client;
+
+      // On cherche un utilisateur avec cet email + password
+      final data = await client
+          .from('utilisateur')
+          .select()
+          .eq('email', email)
+          .eq('password', password)
+          .maybeSingle();
+
+      if (data == null) {
+        // Aucun utilisateur correspondant
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email ou mot de passe incorrect'),
+            ),
+          );
+        }
+      } else {
+        // ✅ Connexion OK → on sauvegarde l'utilisateur dans la session
+        final userMap = data as Map<String, dynamic>;
+        SessionService.setUser(userMap);
+
+        final userId = userMap['id'] as String?;
+
+        // Mise à jour de last_login
+        if (userId != null) {
+          await client
+              .from('utilisateur')
+              .update({'last_login': DateTime.now().toIso8601String()})
+              .eq('id', userId);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Connexion réussie')),
+          );
+          context.go('/home');
+        }
+      }
+    } on PostgrestException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur Supabase : ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue : $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final primary = Colors.green.shade700;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -111,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Connectez-vous avec votre numéro de téléphone.',
+                'Connectez-vous avec votre adresse e-mail.',
                 style: TextStyle(fontSize: 15, color: Colors.grey),
               ),
               const SizedBox(height: 8),
@@ -119,18 +183,18 @@ class _LoginPageState extends State<LoginPage> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    // PHONE
+                    // EMAIL
                     TextFormField(
-                      controller: _phoneCtrl,
-                      keyboardType: TextInputType.phone,
-                      validator: _validatePhone,
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: _validateEmail,
                       decoration: InputDecoration(
-                        labelText: 'Numéro de téléphone',
-                        prefixIcon: const Icon(Icons.phone_android_outlined),
+                        labelText: 'Adresse e-mail',
+                        prefixIcon: const Icon(Icons.email_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        hintText: 'ex: +2376xxxxxxx ou client',
+                        hintText: 'ex: user@example.com',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -139,6 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscure,
+                      validator: _validatePassword,
                       decoration: InputDecoration(
                         labelText: 'Mot de passe',
                         prefixIcon: const Icon(Icons.lock_outline),
@@ -152,7 +217,6 @@ class _LoginPageState extends State<LoginPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        hintText: 'client',
                       ),
                     ),
 
@@ -227,7 +291,7 @@ class _LoginPageState extends State<LoginPage> {
                         border: Border.all(color: Colors.yellow.shade200),
                       ),
                       child: const Text(
-                        'Mode dev: laissez les champs vides pour vous connecter automatiquement, ou utilisez client/client.',
+                        'Mode dev: laissez les champs vides pour vous connecter automatiquement.',
                         style: TextStyle(fontSize: 13),
                       ),
                     ),

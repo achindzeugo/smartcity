@@ -24,13 +24,31 @@ class ProblemList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final list = (limit != null && limit! < items.length) ? items.sublist(0, limit!) : items;
+    // si limit est défini et < items.length → on tronque
+    final List<Problem> list;
+    if (limit != null && limit! < items.length) {
+      list = items.sublist(0, limit!);
+    } else {
+      list = items;
+    }
 
     final List<String> incidentImages = [
       'assets/images/onboarding1.png',
       'assets/images/onboarding2.jpg',
       'assets/images/onboarding3.png',
     ];
+
+    if (list.isEmpty) {
+      return Center(
+        child: Text(
+          'Aucun problème pour le moment.',
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      );
+    }
 
     return ListView.separated(
       physics: physics,
@@ -40,6 +58,15 @@ class ProblemList extends StatelessWidget {
       itemBuilder: (context, i) {
         final p = list[i];
         final imagePath = incidentImages[i % incidentImages.length];
+
+        final createdAt =
+            '${p.createdAt.day.toString().padLeft(2, '0')}/'
+            '${p.createdAt.month.toString().padLeft(2, '0')}/'
+            '${p.createdAt.year}';
+
+        final categoryLabel =
+        p.category.replaceAll('_', ' '); // ex: nid_de_poule → nid de poule
+
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 1.5,
@@ -58,19 +85,21 @@ class ProblemList extends StatelessWidget {
               p.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(textStyle: const TextStyle(fontWeight: FontWeight.w600)),
+              style: GoogleFonts.poppins(
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
             subtitle: Text(
-              '${p.category.replaceAll('_', ' ')} • ${p.createdAt.day}/${p.createdAt.month}/${p.createdAt.year}',
+              '$categoryLabel • $createdAt',
               style: const TextStyle(fontSize: 12),
             ),
             trailing: showTrailingIcon
                 ? IconButton(
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    onPressed: () => context.push('/problem/${p.id}'), // PUSH ici
-                  )
+              icon: const Icon(Icons.arrow_forward_rounded),
+              onPressed: () => context.push('/problem/${p.id}'),
+            )
                 : null,
-            onTap: () => context.push('/problem/${p.id}'), // PUSH ici
+            onTap: () => context.push('/problem/${p.id}'),
           ),
         );
       },

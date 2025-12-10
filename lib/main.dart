@@ -1,16 +1,22 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'src/core/routing/app_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+import 'src/core/routing/app_router.dart';
+import 'src/core/services/supabase_service.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅Barre de statut transparente pour toute l’app
+  // Initialisation Supabase
+  await SupabaseService.init();
+
+  // Barre de statut transparente (fullscreen)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,      // pas de bande de couleur
-      statusBarIconBrightness: Brightness.dark, // icônes sombres (sur fond clair)
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
 
@@ -25,11 +31,14 @@ class SmartCityApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'SmartCity',
+
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -41,12 +50,11 @@ class SmartCityApp extends StatelessWidget {
         ),
       ),
 
-      /// ✅ Ici on coupe le padding top du système pour TOUTE l’app
+      ///  Ici on coupe le padding top du système pour TOUTE l’app (full screen global)
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
           data: mediaQuery.copyWith(
-            // on garde bottom (pour la barre de gestes), mais on remet top à 0
             padding: mediaQuery.padding.copyWith(top: 0),
             viewPadding: mediaQuery.viewPadding.copyWith(top: 0),
           ),
