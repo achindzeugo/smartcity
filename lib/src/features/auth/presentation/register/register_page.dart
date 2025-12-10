@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:smartcity/src/core/services/supabase_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -67,18 +70,64 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => _loading = true);
 
-    // TODO: appel API réel d’inscription
-    await Future.delayed(const Duration(milliseconds: 800));
+    final fullName = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
+    final password = _passwordCtrl.text;
 
-    if (!mounted) return;
-    setState(() => _loading = false);
+    // Dans ton MCD, tu as un seul champ "nom" → on met le nom complet dedans
+    final nom = fullName;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Compte créé (mode dev).')),
-    );
+    try {
+      final client = SupabaseService.client;
 
-    // Après inscription → retour à la page de connexion
-    context.go('/login');
+      // ⚠️ Nom de table : en SQL sans guillemets, "Utilisateur" devient "utilisateur"
+      final payload = <String, dynamic>{
+        'email': email,
+        'password': password, // à sécuriser côté backend plus tard
+        'nom': nom,
+        'role': 'client',     // par défaut un nouveau compte = client
+        'avatar_url': null,
+        'tel': phone,         // Assure-toi que la colonne `tel` existe bien
+        // last_login et date_creation peuvent avoir des DEFAULT côté DB
+      };
+
+      await client.from('utilisateur').insert(payload);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compte créé avec succès. Vous pouvez vous connecter.'),
+        ),
+      );
+
+      context.go('/login');
+    } on PostgrestException catch (e) {
+      String message = 'Erreur lors de la création du compte';
+
+      // Contrainte d’unicité sur email
+      if ((e.code == '23505') ||
+          e.message.toLowerCase().contains('duplicate') ||
+          e.message.toLowerCase().contains('unique')) {
+        message = 'Cet e-mail est déjà utilisé.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue : $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   @override
@@ -93,7 +142,6 @@ class _RegisterPageState extends State<RegisterPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () {
-            // retour à la page de login
             if (context.canPop()) {
               context.pop();
             } else {
@@ -109,7 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 4),
-              // Logo
+
               Center(
                 child: SizedBox(
                   height: 90,
@@ -120,6 +168,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
               const SizedBox(height: 12),
+
               const Text(
                 'Créer un compte',
                 textAlign: TextAlign.left,
@@ -132,7 +181,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
 
-              // Carte contenant le formulaire
               Card(
                 elevation: 3,
                 shape: RoundedRectangleBorder(
@@ -145,7 +193,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        // Nom complet
                         TextFormField(
                           controller: _nameCtrl,
                           validator: (v) => _validateNotEmpty(v, 'Nom complet'),
@@ -160,7 +207,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Email
                         TextFormField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
@@ -175,7 +221,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Téléphone
                         TextFormField(
                           controller: _phoneCtrl,
                           keyboardType: TextInputType.phone,
@@ -192,7 +237,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Mot de passe
                         TextFormField(
                           controller: _passwordCtrl,
                           obscureText: _obscurePwd,
@@ -201,11 +245,14 @@ class _RegisterPageState extends State<RegisterPage> {
                             labelText: 'Mot de passe',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscurePwd
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscurePwd
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () => setState(
-                                      () => _obscurePwd = !_obscurePwd),
+                                    () => _obscurePwd = !_obscurePwd,
+                              ),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -214,7 +261,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Confirmation
                         TextFormField(
                           controller: _confirmCtrl,
                           obscureText: _obscureConfirm,
@@ -223,11 +269,15 @@ class _RegisterPageState extends State<RegisterPage> {
                             labelText: 'Confirmer le mot de passe',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirm
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () => setState(
-                                      () => _obscureConfirm = !_obscureConfirm),
+                                    () =>
+                                _obscureConfirm = !_obscureConfirm,
+                              ),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -242,7 +292,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
               const SizedBox(height: 18),
 
-              // Bouton s’inscrire
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -272,7 +321,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
               const SizedBox(height: 14),
 
-              // Lien retour login
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

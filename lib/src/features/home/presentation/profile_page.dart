@@ -3,6 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:smartcity/src/core/services/supabase_service.dart';
+import 'package:smartcity/src/core/services/session_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,9 +19,10 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isEditing = false;
   bool _saving = false;
 
-  String _name = 'Zeugo Keng Achind';
-  String _email = 'achind.zeugo@gmail.com';
-  String _phone = '+237690000000';
+  String _userId = '';
+  String _name = '';
+  String _email = '';
+  String _phone = ''; // ⚠️ ta table n’a pas encore de `tel`, on le garde en local
 
   late TextEditingController _nameCtrl;
   late TextEditingController _emailCtrl;
@@ -26,6 +31,27 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+
+    final user = SessionService.currentUser;
+
+    // Si aucun utilisateur en mémoire → retour au login
+    if (user == null) {
+      // On attend le premier frame pour ne pas casser le build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go('/login');
+      });
+      _nameCtrl = TextEditingController();
+      _emailCtrl = TextEditingController();
+      _phoneCtrl = TextEditingController();
+      return;
+    }
+
+    _userId = user['id']?.toString() ?? '';
+    _name = (user['nom'] ?? '') as String;
+    _email = (user['email'] ?? '') as String;
+    // Si plus tard tu ajoutes une colonne `tel`, ceci fonctionnera
+    _phone = (user['tel'] ?? '') as String? ?? '';
+
     _nameCtrl = TextEditingController(text: _name);
     _emailCtrl = TextEditingController(text: _email);
     _phoneCtrl = TextEditingController(text: _phone);
@@ -52,21 +78,65 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _save() async {
+    if (_userId.isEmpty) return;
+
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 500));
 
-    setState(() {
-      _name = _nameCtrl.text.trim();
-      _email = _emailCtrl.text.trim();
-      _phone = _phoneCtrl.text.trim();
-      _saving = false;
-      _isEditing = false;
-    });
+    final newName = _nameCtrl.text.trim();
+    final newEmail = _emailCtrl.text.trim();
+    final newPhone = _phoneCtrl.text.trim();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil mis à jour')),
-      );
+    try {
+      final client = SupabaseService.client;
+
+      // On prépare la map de mise à jour
+      final updateData = <String, dynamic>{
+        'nom': newName,
+        'email': newEmail,
+      };
+
+      // Si ta table a une colonne `tel`, tu peux décommenter ça :
+      // updateData['tel'] = newPhone;
+
+      final updated = await client
+          .from('utilisateur')
+          .update(updateData)
+          .eq('id', _userId)
+          .select()
+          .maybeSingle();
+
+      if (updated != null) {
+        _name = (updated['nom'] ?? '') as String;
+        _email = (updated['email'] ?? '') as String;
+        _phone = newPhone; // local uniquement si pas de colonne tel
+
+        SessionService.setUser(updated as Map<String, dynamic>);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profil mis à jour')),
+        );
+      }
+    } on PostgrestException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur Supabase : ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue : $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _isEditing = false;
+        });
+      }
     }
   }
 
@@ -94,11 +164,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm != true) return;
 
-    // TODO: clear token / session ici si tu as un backend ou Firebase
+    // Nettoyage session locale
+    SessionService.clear();
+
+    // Si un jour tu utilises Supabase Auth :
+    try {
+      await SupabaseService.client.auth.signOut();
+    } catch (_) {}
 
     if (!mounted) return;
 
-    // On remplace toute la navigation par la page de login
     context.go('/login');
   }
 
@@ -108,7 +183,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final Color bg = const Color(0xFFF5F5F7);
 
     return WillPopScope(
-      // gestion du bouton back matériel
       onWillPop: () async {
         if (context.canPop()) {
           context.pop();
@@ -119,7 +193,6 @@ class _ProfilePageState extends State<ProfilePage> {
       },
       child: Scaffold(
         backgroundColor: bg,
-
         appBar: AppBar(
           backgroundColor: green,
           elevation: 0,
@@ -151,8 +224,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
-
-        // Bouton "Enregistrer" uniquement en mode édition
         bottomNavigationBar: _isEditing
             ? SafeArea(
           minimum: const EdgeInsets.all(16),
@@ -187,21 +258,16 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         )
             : null,
-
         body: Stack(
           children: [
-            // bande verte en haut
             Container(
               height: 220,
               color: green,
             ),
-
-            // contenu
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
               child: Column(
                 children: [
-                  // avatar + nom
                   SizedBox(
                     height: 130,
                     child: Column(
@@ -253,10 +319,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // card principale
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(
@@ -274,7 +337,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             hint: 'Votre nom',
                           ),
                           const SizedBox(height: 16),
-
                           _buildLabel('Adresse e-mail'),
                           _buildField(
                             controller: _emailCtrl,
@@ -283,7 +345,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             hint: 'email@example.com',
                           ),
                           const SizedBox(height: 16),
-
                           _buildLabel('Numéro de téléphone'),
                           _buildField(
                             controller: _phoneCtrl,
@@ -295,10 +356,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 30),
-
-                  // 🔴 Bouton de déconnexion
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -320,7 +378,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 40),
                 ],
               ),
@@ -361,7 +418,8 @@ class _ProfilePageState extends State<ProfilePage> {
         hintStyle: TextStyle(color: Colors.grey.shade400),
         filled: true,
         fillColor: enabled ? Colors.white : const Color(0xFFF7F7F9),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
         ),
