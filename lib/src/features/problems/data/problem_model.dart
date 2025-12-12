@@ -50,4 +50,34 @@ class Problem {
       images: images ?? this.images,
     );
   }
+
+  factory Problem.fromMap(Map<String, dynamic> map) {
+    return Problem(
+      id: map['id'] as String,
+      title: map['title'] as String,
+      description: map['description'] as String,
+      category: map['category'] as String,
+      latitude: (map['latitude'] as num).toDouble(),
+      longitude: (map['longitude'] as num).toDouble(),
+      createdAt: DateTime.parse(map['created_at'] as String),
+      reporterId: map['user_id'] as String,
+      status: map['status'] as String? ?? 'pending',
+      images: List<String>.from(map['images'] ?? []),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'category': category,
+      'latitude': latitude,
+      'longitude': longitude,
+      'created_at': createdAt.toIso8601String(),
+      'user_id': reporterId,
+      'status': status,
+      'images': images,
+    };
+  }
 }

@@ -3,14 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../problems/data/problem_repository.dart';
+import 'package:smartcity/src/core/services/session_service.dart';
+import 'package:smartcity/src/core/services/supabase_service.dart';
 import '../../problems/data/problem_model.dart';
 
 class MesSignalementsPage extends StatefulWidget {
-  final String currentUserId;
-
-  const MesSignalementsPage({super.key, required this.currentUserId});
+  // MODIF: On retire currentUserId, on le récupère depuis le SessionService
+  const MesSignalementsPage({super.key});
 
   @override
   State<MesSignalementsPage> createState() => _MesSignalementsPageState();
@@ -18,24 +17,57 @@ class MesSignalementsPage extends StatefulWidget {
 
 class _MesSignalementsPageState extends State<MesSignalementsPage>
     with SingleTickerProviderStateMixin {
-  final ProblemRepository _repo = ProblemRepository();
 
   late TabController _tabController;
-  late List<Problem> _allForUser;
+  // MODIF: La liste est initialisée à vide, elle sera remplie par Supabase
+  List<Problem> _allForUser = [];
   bool _loading = true;
+
+  // MODIF: On récupère l'ID utilisateur depuis la session
+  late final String _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // MODIF: On s'assure que l'utilisateur est connecté avant de charger
+    if (SessionService.currentUser == null) {
+      // Gérer le cas où l'utilisateur n'est pas connecté
+      // Par exemple, rediriger vers la page de connexion
+      context.go('/login');
+      return;
+    }
+    _currentUserId = SessionService.currentUser!['id'];
+
     _load();
   }
 
-  void _load() {
-    setState(() {
-      _allForUser = _repo.getByReporter(widget.currentUserId);
-      _loading = false;
-    });
+  // MODIF: La fonction est maintenant asynchrone pour charger depuis Supabase
+  Future<void> _load() async {
+    setState(() => _loading = true);
+
+    try {
+      final data = await SupabaseService.client
+          .from('problem')
+          .select()
+          .eq('user_id', _currentUserId)
+          .order('created_at', ascending: false);
+
+      if (mounted) {
+        setState(() {
+          _allForUser = data.map((item) => Problem.fromMap(item)).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur de chargement: $e")),
+        );
+      }
+    }
   }
 
   List<Problem> _filterForTab(int index) {
@@ -45,10 +77,11 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     }
     return _allForUser.where((p) {
       final s = p.status.toLowerCase();
-      return s == 'treated' || s == 'resolved' || s == 'done';
+      return s == 'treated' || s == 'resolved' || s == 'done' || s == 'in_progress';
     }).toList();
   }
 
+  // MODIF: La suppression se fait maintenant aussi sur Supabase
   void _confirmDelete(BuildContext ctx, Problem p) {
     showDialog(
       context: ctx,
@@ -58,11 +91,24 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
         actions: [
           TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('Annuler')),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _allForUser.removeWhere((x) => x.id == p.id);
-              });
-              Navigator.of(c).pop();
+            onPressed: () async {
+              try {
+                // On supprime dans la base de données
+                await SupabaseService.client.from('problem').delete().eq('id', p.id);
+
+                // On met à jour l'état local
+                setState(() {
+                  _allForUser.removeWhere((x) => x.id == p.id);
+                });
+                if (mounted) Navigator.of(c).pop();
+              } catch (e) {
+                 if (mounted) {
+                   Navigator.of(c).pop();
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     SnackBar(content: Text("Erreur lors de la suppression: $e")),
+                   );
+                 }
+              }
             },
             child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
           ),
@@ -80,7 +126,7 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
           const SizedBox(height: 12),
           Text(label, style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey)),
           const SizedBox(height: 6),
-          Text('Vous n\'avez encore aucun signalement ici.', style: TextStyle(color: Colors.grey.shade500)),
+          Text('Vous n avez encore aucun signalement ici.', style: TextStyle(color: Colors.grey.shade500)),
         ],
       ),
     );
@@ -114,8 +160,17 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
+              // MODIF: Utilisation de l'URL de l'image si disponible
               child: (p.images.isNotEmpty)
-                  ? Image.asset(p.images.first, width: 74, height: 74, fit: BoxFit.cover)
+                  ? Image.network(p.images.first, width: 74, height: 74, fit: BoxFit.cover,
+                    // Placeholder pour le chargement de l'image réseau
+                    loadingBuilder: (context, child, progress) {
+                      return progress == null ? child : const SizedBox(width: 74, height: 74, child: Center(child: CircularProgressIndicator()));
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(width: 74, height: 74, color: Colors.grey.shade100, child: const Icon(Icons.broken_image, color: Colors.grey));
+                    },
+                  )
                   : Container(width: 74, height: 74, color: Colors.grey.shade100, child: const Icon(Icons.image, color: Colors.grey)),
             ),
 
@@ -214,7 +269,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     final titleStyle = GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600);
 
     return WillPopScope(
-      // ✅ Gestion du bouton BACK du téléphone
       onWillPop: () async {
         if (context.canPop()) {
           context.pop();
@@ -228,7 +282,6 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            // ✅ Même logique pour la flèche retour
             onPressed: () {
               if (context.canPop()) {
                 context.pop();
@@ -301,3 +354,5 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     super.dispose();
   }
 }
+
+
