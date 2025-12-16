@@ -21,147 +21,182 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
   final ProblemRepository _repo = ProblemRepository();
 
   late TabController _tabController;
-  late List<Problem> _allForUser;
+  List<Problem> _allForUser = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _load();
   }
 
-  void _load() {
+  // ================== DATA ==================
+
+  Future<void> _load() async {
     setState(() {
-      _allForUser = _repo.getByReporter(widget.currentUserId);
-      _loading = false;
+      _loading = true;
+      _error = null;
+      _allForUser = [];
     });
+
+    try {
+      final list = await _repo.fetchByReporter(widget.currentUserId);
+      if (!mounted) return;
+      setState(() => _allForUser = list);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _onRefresh() async => _load();
+
+  // ================== STATUS ==================
+
+  String _uiStatus(String s) {
+    switch (s) {
+      case 'soumis':
+        return 'Soumis';
+      case 'en cours':
+        return 'En attente';
+      case 'résolu':
+        return 'Résolu';
+      default:
+        return 'Soumis';
+    }
+  }
+
+  Color _statusColor(String s) {
+    switch (s) {
+      case 'soumis':
+        return Colors.blue;
+      case 'en cours':
+        return Colors.orange;
+      case 'résolu':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  double _statusProgress(String s) {
+    switch (s) {
+      case 'soumis':
+        return 0.25;
+      case 'en cours':
+        return 0.6;
+      case 'résolu':
+        return 1.0;
+      default:
+        return 0.0;
+    }
   }
 
   List<Problem> _filterForTab(int index) {
-    if (index == 0) return _allForUser;
-    if (index == 1) {
-      return _allForUser.where((p) => p.status.toLowerCase() == 'pending').toList();
+    switch (index) {
+      case 0:
+        return _allForUser;
+      case 1:
+        return _allForUser.where((p) => p.status == 'soumis').toList();
+      case 2:
+        return _allForUser.where((p) => p.status == 'en cours').toList();
+      case 3:
+        return _allForUser.where((p) => p.status == 'résolu').toList();
+      default:
+        return _allForUser;
     }
-    return _allForUser.where((p) {
-      final s = p.status.toLowerCase();
-      return s == 'treated' || s == 'resolved' || s == 'done';
-    }).toList();
   }
 
-  void _confirmDelete(BuildContext ctx, Problem p) {
-    showDialog(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        title: const Text('Supprimer ce signalement ?'),
-        content: const Text('Cette action est irréversible.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _allForUser.removeWhere((x) => x.id == p.id);
-              });
-              Navigator.of(c).pop();
-            },
-            child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+  // ================== IMAGE ==================
+
+  Widget _leadingVisual(Problem p) {
+    if (p.images.isNotEmpty && p.images.first.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          p.images.first,
+          width: 72,
+          height: 72,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _iconFallback(),
+        ),
+      );
+    }
+    return _iconFallback();
+  }
+
+  Widget _iconFallback() {
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(
+        Icons.report_problem_outlined,
+        color: Colors.green,
+        size: 32,
       ),
     );
   }
 
-  Widget _buildEmpty(String label) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.report_problem_outlined, size: 60, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(label, style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey)),
-          const SizedBox(height: 6),
-          Text('Vous n\'avez encore aucun signalement ici.', style: TextStyle(color: Colors.grey.shade500)),
-        ],
-      ),
-    );
-  }
+  // ================== CARD ==================
 
-  double _statusProgress(String status) {
-    final s = status.toLowerCase();
-    if (s == 'pending') return 0.25;
-    if (s == 'in_progress' || s == 'progress') return 0.6;
-    if (s == 'treated' || s == 'resolved' || s == 'done') return 1.0;
-    return 0.0;
-  }
-
-  Widget _buildTile(Problem p) {
-    final date = '${p.createdAt.day}/${p.createdAt.month}/${p.createdAt.year}';
-    final statusLower = p.status.toLowerCase();
-    final statusColor = statusLower == 'pending' ? Colors.orange.shade700 : Colors.green.shade700;
-    final progress = _statusProgress(p.status);
+  Widget _buildCard(Problem p) {
+    final color = _statusColor(p.status);
 
     return InkWell(
       onTap: () => context.push('/problem/${p.id}'),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3))],
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: (p.images.isNotEmpty)
-                  ? Image.asset(p.images.first, width: 74, height: 74, fit: BoxFit.cover)
-                  : Container(width: 74, height: 74, color: Colors.grey.shade100, child: const Icon(Icons.image, color: Colors.grey)),
-            ),
-
+            _leadingVisual(p),
             const SizedBox(width: 12),
 
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(p.title,
-                            maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
+                  Text(
+                    p.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 8),
-
-                  Text(p.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Text(
+                    p.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                   const SizedBox(height: 10),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 8,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
-                          const SizedBox(width: 6),
-                          Text(date, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    ],
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: _statusProgress(p.status),
+                      minHeight: 6,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation(color),
+                    ),
                   ),
                 ],
               ),
@@ -170,25 +205,27 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
             const SizedBox(width: 10),
 
             Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(16)),
-                  child: Text(p.status, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
-                ),
-                const SizedBox(height: 8),
-                Material(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  child: InkWell(
-                    onTap: () => _confirmDelete(context, p),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6.0),
-                      child: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 22),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _uiStatus(p.status),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${p.createdAt.day}/${p.createdAt.month}/${p.createdAt.year}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -198,102 +235,100 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
     );
   }
 
-  Widget _buildList(List<Problem> items) {
-    if (items.isEmpty) return _buildEmpty('Aucun signalement');
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _buildTile(items[index]),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final titleStyle = GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600);
-
-    return WillPopScope(
-      // ✅ Gestion du bouton BACK du téléphone
-      onWillPop: () async {
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/home');
-        }
-        return false;
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF7F7F9),
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            // ✅ Même logique pour la flèche retour
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/home');
-              }
-            },
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.report_problem_outlined,
+              size: 60, color: Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(
+            'Aucun signalement',
+            style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
           ),
-          title: Text("Mes signalements", style: titleStyle),
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(78),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 6,
-                    )
-                  ],
-                ),
-                padding: const EdgeInsets.all(4),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: Colors.green.shade700,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 20),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.black54,
-                  tabs: [
-                    Tab(child: Text('All', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                    Tab(child: Text('Pending', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                    Tab(child: Text('Treated', style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
-                  ],
-                ),
-              ),
-            ),
+          const SizedBox(height: 6),
+          Text(
+            'Vous n’avez encore rien signalé ici.',
+            style: TextStyle(color: Colors.grey.shade500),
           ),
-        ),
-
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SafeArea(
-          child: TabBarView(
-            controller: _tabController,
-            children: List.generate(3, (i) {
-              final list = _filterForTab(i);
-              return _buildList(list);
-            }),
-          ),
-        ),
+        ],
       ),
     );
   }
 
+  // ================== BUILD ==================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F9),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          "Mes signalements",
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(64),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                onTap: (_) => setState(() {}),
+                indicator: BoxDecoration(
+                  color: Colors.green.shade700,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.black54,
+                tabs: const [
+                  Tab(text: 'All'),
+                  Tab(text: 'Soumis'),
+                  Tab(text: 'En attente'),
+                  Tab(text: 'Résolu'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text('Erreur: $_error'))
+          : RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: TabBarView(
+          controller: _tabController,
+          children: List.generate(4, (i) {
+            final items = _filterForTab(i);
+            if (items.isEmpty) return _buildEmpty();
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              separatorBuilder: (_, __) =>
+              const SizedBox(height: 12),
+              itemBuilder: (_, index) =>
+                  _buildCard(items[index]),
+            );
+          }),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {

@@ -90,9 +90,10 @@ class ProblemList extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              '$categoryLabel • $createdAt',
+              '${p.category} • ${p.createdAt.day}/${p.createdAt.month}/${p.createdAt.year}',
               style: const TextStyle(fontSize: 12),
             ),
+
             trailing: showTrailingIcon
                 ? IconButton(
               icon: const Icon(Icons.arrow_forward_rounded),
