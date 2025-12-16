@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:smartcity/src/core/services/session_service.dart';
 import 'package:smartcity/src/features/auth/presentation/onboarding/onboarding_screen.dart';
 import 'package:smartcity/src/features/auth/presentation/login/login_page.dart';
 import 'package:smartcity/src/features/auth/presentation/register/register_page.dart';
@@ -40,8 +41,21 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/my-reports',
-      builder: (context, state) => MesSignalementsPage(currentUserId: 'user1'),
+      builder: (context, state) {
+        final user = SessionService.currentUser;
+
+        // Sécurité : pas connecté → login
+        if (user == null || user['id'] == null) {
+          return const LoginPage();
+        }
+
+        return MesSignalementsPage(
+          currentUserId: user['id'].toString(), // ✅ UUID réel
+        );
+      },
     ),
+
+
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfilePage(),

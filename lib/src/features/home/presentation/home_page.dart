@@ -1,3 +1,4 @@
+// lib/src/features/home/presentation/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +22,11 @@ class _HomePageState extends State<HomePage> {
 
   final List<String> categories = ['insalubrite', 'nid_de_poule', 'lampadaire'];
   String? _selectedCategory;
-  late List<Problem> _items;
+
+  // état list recent
+  List<Problem> _items = [];
+  bool _loading = true;
+  String? _error;
 
   // 🔽 FAB plus petit
   static const double _fabSize = 56.0;
@@ -32,24 +37,78 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory;
-    _items = _repo.filterByCategory(_selectedCategory);
+    _loadInitialItems();
   }
 
-  void _selectCategory(String? code) {
+  Future<void> _loadInitialItems() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _items = [];
+    });
+
+    try {
+      // On récupère directement la première page (5 derniers)
+      final recent = await _repo.fetchPage(pageIndex: 0, pageSize: 5);
+
+      // Si une catégorie est demandée au démarrage, on filtre côté client
+      final filtered = (_selectedCategory == null)
+          ? recent
+          : recent.where((p) => p.category == _selectedCategory || p.category.contains(_selectedCategory!)).toList();
+
+      setState(() {
+        _items = filtered;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  /// Si tu veux filtrer par catégorie depuis le serveur, remplace
+  /// cette implémentation par une requête server-side (ex: .eq('id_categorie', ...))
+  /// Ici on fait client-side: on récupère une page (5) puis on filtre.
+  Future<void> _selectCategory(String? code) async {
     setState(() {
       _selectedCategory = code;
-      _items = _repo.filterByCategory(code);
+      _loading = true;
+      _error = null;
+      _items = [];
     });
-    if (code == null) {
-      context.go('/home');
-    } else {
-      context.go('/category/$code');
+
+    try {
+      // Exemple simple : récupère la première page (5) et filtre côté client
+      final recent = await _repo.fetchPage(pageIndex: 0, pageSize: 20);
+      final byCat = code == null
+          ? recent
+          : recent.where((p) => (p.category == code) || (p.category.contains(code))).toList();
+
+      // on limite à 5
+      setState(() {
+        _items = byCat.take(5).toList();
+      });
+
+      // navigation route
+      if (code == null) {
+        context.go('/home');
+      } else {
+        context.go('/category/$code');
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final latest = _repo.getLatest();
+    // latest = premier élément de la liste (les items proviennent de supabase)
+    final Problem? latest = _items.isNotEmpty ? _items.first : null;
+
     final center = latest != null
         ? LatLng(latest.latitude, latest.longitude)
         : LatLng(4.0483, 9.7066);
@@ -160,20 +219,24 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            if (latest != null)
+
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.0),
+                child: CircularProgressIndicator(),
+              ),
+
+            if (!_loading && latest != null)
               Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
                 child: Card(
                   elevation: 3,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   child: InkWell(
                     onTap: () => context.push('/problem/${latest.id}'),
                     borderRadius: BorderRadius.circular(14),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       child: Row(
                         children: [
                           Container(
@@ -183,8 +246,7 @@ class _HomePageState extends State<HomePage> {
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.warning_rounded,
-                                color: Colors.red),
+                            child: const Icon(Icons.warning_rounded, color: Colors.red),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -194,10 +256,7 @@ class _HomePageState extends State<HomePage> {
                                 Text(
                                   latest.title,
                                   style: GoogleFonts.poppins(
-                                    textStyle: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -205,9 +264,7 @@ class _HomePageState extends State<HomePage> {
                                 const SizedBox(height: 6),
                                 Text(
                                   '${latest.createdAt.day}/${latest.createdAt.month}/${latest.createdAt.year} • ${latest.description}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade700),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -215,10 +272,8 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                           IconButton(
-                            icon: Icon(Icons.chevron_right,
-                                color: Colors.grey.shade700),
-                            onPressed: () =>
-                                context.push('/problem/${latest.id}'),
+                            icon: Icon(Icons.chevron_right, color: Colors.grey.shade700),
+                            onPressed: () => context.push('/problem/${latest.id}'),
                           ),
                         ],
                       ),
@@ -226,51 +281,43 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
+
             SizedBox(
               height: 64,
               child: ListView.separated(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final isAll = index == 0;
                   final code = isAll ? null : categories[index - 1];
-                  final label =
-                  isAll ? 'Tous' : (code!.replaceAll('_', ' '));
-                  final selected = _selectedCategory == code ||
-                      (isAll && _selectedCategory == null);
+                  final label = isAll ? 'Tous' : (code!.replaceAll('_', ' '));
+                  final selected = _selectedCategory == code || (isAll && _selectedCategory == null);
                   return ChoiceChip(
                     label: Text(
                       label,
                       style: GoogleFonts.poppins(
-                        textStyle: TextStyle(
-                            fontSize: 13,
-                            color: selected ? Colors.white : Colors.black87),
+                        textStyle: TextStyle(fontSize: 13, color: selected ? Colors.white : Colors.black87),
                       ),
                     ),
                     selected: selected,
                     onSelected: (_) => _selectCategory(code),
                     selectedColor: Colors.green.shade700,
                     backgroundColor: Colors.grey.shade100,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   );
                 },
               ),
             ),
+
             const SizedBox(height: 0),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14.0),
               child: Row(
                 children: [
-                  Text('Problèmes récents',
-                      style: GoogleFonts.poppins(
-                          textStyle: const TextStyle(
-                              fontWeight: FontWeight.w700))),
+                  Text('Problèmes récents', style: GoogleFonts.poppins(textStyle: const TextStyle(fontWeight: FontWeight.w700))),
                   const Spacer(),
                   TextButton(
                     onPressed: () => context.push('/problems'),
@@ -279,14 +326,16 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
+
             Expanded(
-              child: ProblemList(
+              child: _error != null && !_loading
+                  ? Center(child: Text('Erreur: $_error'))
+                  : ProblemList(
                 items: _items,
-                limit: null,
+                limit: null, // la liste est déjà limitée à 5
                 showTrailingIcon: true,
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                    14, 8, 14, bottomSpace),
+                padding: EdgeInsets.fromLTRB(14, 8, 14, bottomSpace),
               ),
             ),
           ],
@@ -299,7 +348,7 @@ class _HomePageState extends State<HomePage> {
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 62, // ✅ hauteur fixe qui évite l’overflow
+        height: 65,
         child: BottomAppBar(
           elevation: 8,
           color: Colors.white,
@@ -307,39 +356,20 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                // ✅ CHAQUE BLOC A LA MÊME LARGEUR
                 Expanded(
-                  child: _NavItem(
-                    icon: Icons.home_filled,
-                    label: 'Home',
-                    isActive: true,
-                    onPressed: () => context.go('/home'),
-                  ),
+                  child: _NavItem(icon: Icons.home_filled, label: 'Home', isActive: true, onPressed: () => context.go('/home')),
                 ),
                 Expanded(
-                  child: _NavItem(
-                    icon: Icons.receipt_long,
-                    label: 'Reports',
-                    onPressed: () => context.push('/my-reports'),
-                  ),
+                  child: _NavItem(icon: Icons.receipt_long, label: 'Reports', onPressed: () => context.push('/my-reports')),
                 ),
 
-                // ✅ ESPACE POUR LE FAB FLOTTANT
                 const SizedBox(width: 52),
 
                 Expanded(
-                  child: _NavItem(
-                    icon: Icons.notifications_outlined,
-                    label: 'Alerts',
-                    onPressed: () => context.push('/notifications'),
-                  ),
+                  child: _NavItem(icon: Icons.notifications_outlined, label: 'Alerts', onPressed: () => context.push('/notifications')),
                 ),
                 Expanded(
-                  child: _NavItem(
-                    icon: Icons.person_outline,
-                    label: 'Profile',
-                    onPressed: () => context.push('/profile'),
-                  ),
+                  child: _NavItem(icon: Icons.person_outline, label: 'Profile', onPressed: () => context.push('/profile')),
                 ),
               ],
             ),
@@ -348,7 +378,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 }
 
 class _NavItem extends StatelessWidget {
@@ -366,28 +395,31 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final color = isActive ? Colors.green.shade700 : Colors.grey.shade600;
+
+    return InkWell(
       onTap: onPressed,
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // ✅ empêche le débordement
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 22, // ✅ taille réduite
-            color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 10, // ✅ texte plus petit
-              color: isActive ? Colors.green.shade700 : Colors.grey.shade600,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: color), // ⬅️ réduit
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 10, // ⬅️ réduit
+                color: color,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
