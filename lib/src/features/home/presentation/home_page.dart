@@ -346,7 +346,7 @@ class _HomePageState extends State<HomePage> {
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 65,
+        height: 68,
         child: BottomAppBar(
           elevation: 8,
           color: Colors.white,

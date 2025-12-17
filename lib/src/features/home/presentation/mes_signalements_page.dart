@@ -183,10 +183,12 @@ class _MesSignalementsPageState extends State<MesSignalementsPage>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    p.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    p.category.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   ClipRRect(

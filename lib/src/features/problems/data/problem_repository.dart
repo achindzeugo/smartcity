@@ -1,184 +1,102 @@
 // lib/src/features/problems/data/problem_repository.dart
+import 'dart:developer';
 
-import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/services/supabase_service.dart';
-import '../../../core/services/storage_service.dart';
 import 'problem_model.dart';
 
 class ProblemRepository {
-  final SupabaseClient supabase;
+  final SupabaseClient _client = SupabaseService.client;
 
-  ProblemRepository({SupabaseClient? client})
-      : supabase = client ?? SupabaseService.client;
+  // Convertit une ligne Supabase en objet Problem
+  Problem _fromRow(Map<String, dynamic> row) {
+    final categoryData = row['categorie_pb'];
+    String categoryLabel = (categoryData is Map && categoryData.containsKey('libelle'))
+        ? categoryData['libelle']
+        : 'Inconnue';
 
-  // ============================================================
-  // 🟢 CREATE PROBLEM + IMAGES (NOUVEAU – N'ÉCRASE RIEN)
-  // ============================================================
+    return Problem(
+      id: row['id'] as String,
+      title: row['titre'] as String,
+      description: row['description'] as String,
+      category: categoryLabel,
+      latitude: (row['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (row['longitude'] as num?)?.toDouble() ?? 0.0,
+      createdAt: DateTime.parse(row['create_at'] as String),
+      reporterId: row['id_utilisateur_affecte'] ?? 'system',
+      status: row['statut_pb']?['code'] ?? 'soumis',
+      images: (row['media_url']?['url'] != null) ? [row['media_url']['url']] : [],
+    );
+  }
 
-  Future<void> createProblemWithImages({
-    required String title,
-    required String description,
-    required String categoryId,
-    required String statutId,
-    required String userId,
-    double? latitude,
-    double? longitude,
-    required List<File> images,
-  }) async {
-    // 1️⃣ Create problem
-    final problem = await supabase
-        .from('problemes')
-        .insert({
-      'titre': title,
-      'description': description,
-      'id_categorie': categoryId,
-      'id_statut': statutId,
-      'id_utilisateur_affecte': userId,
-      'latitude': latitude,
-      'longitude': longitude,
-    })
-        .select()
-        .single();
+  // ============ PUBLIC API ==============
 
-    final String problemId = problem['id'];
+  /// Récupère une page de problèmes (ex: 10 derniers)
+  Future<List<Problem>> fetchPage({required int pageIndex, required int pageSize}) async {
+    try {
+      final start = pageIndex * pageSize;
+      final end = start + pageSize - 1;
 
-    // 2️⃣ Upload images (Storage)
-    if (images.isNotEmpty) {
-      final List<String> urls = [];
+      final response = await _client
+          .from('problemes')
+          .select('*, categorie_pb(libelle), statut_pb(code), media_url(url)')
+          .order('create_at', ascending: false)
+          .range(start, end);
 
-      for (int i = 0; i < images.length; i++) {
-        final url = await StorageService.uploadProblemImage(
-          file: images[i],
-          userId: userId,
-          problemId: problemId,
-          index: i,
-        );
-        urls.add(url);
-      }
+      return response.map<Problem>(_fromRow).toList();
+    } catch (e) {
+      log('Erreur fetchPage: $e');
+      throw Exception("Erreur lors de la récupération des problèmes");
+    }
+  }
 
-      // 3️⃣ Create media_url
-      final media = await supabase
-          .from('media_url')
-          .insert({
-        'url': urls.first, // image principale
-        'type': 'image',
-      })
-          .select()
+  /// Récupère un problème par son ID avec les détails (catégorie, statut)
+  Future<Problem> fetchById(String id) async {
+    try {
+      final response = await _client
+          .from('problemes')
+          .select('*, categorie_pb(libelle), statut_pb(code), media_url(url)')
+          .eq('id', id)
           .single();
 
-      // 4️⃣ Link image to problem
-      await supabase
-          .from('problemes')
-          .update({'id_media_url': media['id']})
-          .eq('id', problemId);
+      return _fromRow(response);
+    } catch (e) {
+      log('Erreur fetchById: $e');
+      throw Exception("Problème non trouvé");
     }
   }
 
-  // ============================================================
-  // 📄 FETCH PAGE (OBLIGATOIRE – utilisé partout)
-  // ============================================================
-
-  Future<List<Problem>> fetchPage({
-    required int pageIndex,
-    required int pageSize,
-  }) async {
-    final from = pageIndex * pageSize;
-    final to = from + pageSize - 1;
-
-    final res = await supabase
-        .from('problemes')
-        .select('*, statut:statut_pb(*), media_url(*)')
-        .order('create_at', ascending: false)
-        .range(from, to);
-
-    return _mapList(res);
-  }
-
-  // ============================================================
-  // 🔍 FETCH BY ID
-  // ============================================================
-
-  Future<Problem> fetchById(String id) async {
-    final res = await supabase
-        .from('problemes')
-        .select('*, statut:statut_pb(*), media_url(*)')
-        .eq('id', id)
-        .maybeSingle();
-
-    if (res == null) {
-      throw Exception('Problème introuvable');
-    }
-
-    return _mapOne(res);
-  }
-
-  // ============================================================
-  // 👤 MES SIGNALEMENTS
-  // ============================================================
-
+  /// Récupère les problèmes signalés par un utilisateur spécifique
   Future<List<Problem>> fetchByReporter(String userId) async {
-    final res = await supabase
-        .from('problemes')
-        .select('*, statut:statut_pb(*), media_url(*)')
-        .eq('id_utilisateur_affecte', userId)
-        .order('create_at', ascending: false);
+    try {
+      final response = await _client
+          .from('problemes')
+          .select('*, categorie_pb(libelle), statut_pb(code), media_url(url)')
+          .eq('id_utilisateur_affecte', userId)
+          .order('create_at', ascending: false);
 
-    return _mapList(res);
+      return response.map<Problem>(_fromRow).toList();
+    } catch (e) {
+      log('Erreur fetchByReporter: $e');
+      throw Exception("Erreur lors de la récupération des signalements");
+    }
   }
 
-  // ============================================================
-  // ➕ INSERT SIMPLE (compatibilité ancien code)
-  // ============================================================
-
-  Future<Problem> add(Problem p) async {
-    final res = await supabase
-        .from('problemes')
-        .insert(p.toMap())
-        .select('*, statut:statut_pb(*), media_url(*)')
-        .maybeSingle();
-
-    if (res == null) {
-      throw Exception('Insertion échouée');
+  /// Ajoute un nouveau problème
+  Future<void> add(Problem p) async {
+    try {
+      await _client.from('problemes').insert({
+        'titre': p.title,
+        'description': p.description,
+        'id_categorie': p.category, // Côté client, on envoie l'ID
+        'latitude': p.latitude,
+        'longitude': p.longitude,
+        'id_utilisateur_affecte': p.reporterId,
+      });
+    } catch (e) {
+      log('Erreur add problem: $e');
+      throw Exception("Erreur lors de l'ajout du problème");
     }
-
-    return _mapOne(res);
-  }
-
-  // ============================================================
-  // 🧠 MAPPERS
-  // ============================================================
-
-  List<Problem> _mapList(dynamic res) {
-    if (res is! List) return [];
-
-    return res.map<Problem>((row) {
-      final map = Map<String, dynamic>.from(row);
-
-      if (map['media_url'] != null && map['media_url']['url'] != null) {
-        map['images'] = [map['media_url']['url']];
-      }
-
-      if (map['statut'] != null && map['statut']['code'] != null) {
-        map['status'] = map['statut']['code'];
-      }
-
-      return Problem.fromMap(map);
-    }).toList();
-  }
-
-  Problem _mapOne(Map<String, dynamic> row) {
-    final map = Map<String, dynamic>.from(row);
-
-    if (map['media_url'] != null && map['media_url']['url'] != null) {
-      map['images'] = [map['media_url']['url']];
-    }
-
-    if (map['statut'] != null && map['statut']['code'] != null) {
-      map['status'] = map['statut']['code'];
-    }
-
-    return Problem.fromMap(map);
   }
 }

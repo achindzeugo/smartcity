@@ -24,8 +24,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
   bool _loading = true;
   int _imageIndex = 0;
 
-  final MapController _mapController = MapController();
-
   @override
   void initState() {
     super.initState();
@@ -114,7 +112,6 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
       );
     }
   }
-
 
   // ================== BUILD ==================
 
@@ -207,6 +204,21 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
                             _uiStatus(p.status),
                             style: TextStyle(
                               color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            p.category,
+                            style: TextStyle(
+                              color: Colors.grey.shade800,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -368,12 +380,15 @@ class _ProblemDetailPageState extends State<ProblemDetailPage> {
 
   Widget _noLocation() {
     return Container(
-      height: 100,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Center(child: Text('Position non disponible')),
+      child: const Center(
+        child: Text('Position non disponible'),
+      ),
     );
   }
 }
