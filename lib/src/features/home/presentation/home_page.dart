@@ -1,4 +1,3 @@
-// lib/src/features/home/presentation/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
@@ -64,7 +63,7 @@ class _HomePageState extends State<HomePage> {
         _error = e.toString();
       });
     } finally {
-      setState(() => _loading = false);
+      if(mounted) setState(() => _loading = false);
     }
   }
 
@@ -98,9 +97,9 @@ class _HomePageState extends State<HomePage> {
         context.go('/category/$code');
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if(mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _loading = false);
+      if(mounted) setState(() => _loading = false);
     }
   }
 
@@ -333,7 +332,6 @@ class _HomePageState extends State<HomePage> {
                   : ProblemList(
                 items: _items,
                 limit: null, // la liste est déjà limitée à 5
-                showTrailingIcon: true,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(14, 8, 14, bottomSpace),
               ),
