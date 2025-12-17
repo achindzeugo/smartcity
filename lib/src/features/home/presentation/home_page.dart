@@ -357,19 +357,19 @@ class _HomePageState extends State<HomePage> {
             child: Row(
               children: [
                 Expanded(
-                  child: _NavItem(icon: Icons.home_filled, label: 'Home', isActive: true, onPressed: () => context.go('/home')),
+                  child: _NavItem(icon: Icons.home_filled, label: 'Accueil', isActive: true, onPressed: () => context.go('/home')),
                 ),
                 Expanded(
-                  child: _NavItem(icon: Icons.receipt_long, label: 'Reports', onPressed: () => context.push('/my-reports')),
+                  child: _NavItem(icon: Icons.receipt_long, label: 'Signalements', onPressed: () => context.push('/my-reports')),
                 ),
 
                 const SizedBox(width: 52),
 
                 Expanded(
-                  child: _NavItem(icon: Icons.notifications_outlined, label: 'Alerts', onPressed: () => context.push('/notifications')),
+                  child: _NavItem(icon: Icons.notifications_outlined, label: 'Alertes', onPressed: () => context.push('/notifications')),
                 ),
                 Expanded(
-                  child: _NavItem(icon: Icons.person_outline, label: 'Profile', onPressed: () => context.push('/profile')),
+                  child: _NavItem(icon: Icons.person_outline, label: 'Profil', onPressed: () => context.push('/profile')),
                 ),
               ],
             ),
@@ -422,4 +422,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-

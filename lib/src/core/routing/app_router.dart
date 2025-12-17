@@ -13,7 +13,29 @@ import 'package:smartcity/src/features/home/presentation/notifications_page.dart
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    final user = SessionService.currentUser;
+    final isLoggedIn = user != null && user['id'] != null;
+
+    final location = state.matchedLocation;
+
+    // pages publiques
+    const publicRoutes = ['/', '/login', '/register'];
+
+    //  pas connecté → bloqué
+    if (!isLoggedIn && !publicRoutes.contains(location)) {
+      return '/login';
+    }
+
+    // ✅ connecté → pas besoin de login/onboarding
+    if (isLoggedIn && (location == '/' || location == '/login')) {
+      return '/home';
+    }
+
+    return null; // aucune redirection
+  },
   routes: [
+
     GoRoute(path: '/', builder: (context, state) => const OnboardingScreen()),
     GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
     GoRoute(path: '/home', builder: (context, state) => const HomePage()),
@@ -44,16 +66,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final user = SessionService.currentUser;
 
-        // Sécurité : pas connecté → login
         if (user == null || user['id'] == null) {
           return const LoginPage();
         }
 
         return MesSignalementsPage(
-          currentUserId: user['id'].toString(), // ✅ UUID réel
+          currentUserId: user['id'].toString(),
         );
       },
     ),
+
 
 
     GoRoute(

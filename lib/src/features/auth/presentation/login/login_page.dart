@@ -56,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
       await Future.delayed(const Duration(milliseconds: 300));
 
       // on se crée un user "fake" pour la session
-      SessionService.setUser({
+      await SessionService.setUser({
         'id': 'dev-user',
         'email': 'dev@example.com',
         'nom': 'Utilisateur démo',
@@ -98,7 +98,7 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         // ✅ Connexion OK → on sauvegarde l'utilisateur dans la session
         final userMap = data as Map<String, dynamic>;
-        SessionService.setUser(userMap);
+        await SessionService.setUser(userMap);
 
         final userId = userMap['id'] as String?;
 

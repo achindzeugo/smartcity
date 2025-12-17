@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:smartcity/src/core/services/session_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'src/core/routing/app_router.dart';
@@ -11,6 +12,7 @@ Future<void> main() async {
 
   // Initialisation Supabase
   await SupabaseService.init();
+  await SessionService.init();
 
   // Barre de statut transparente (fullscreen)
   SystemChrome.setSystemUIOverlayStyle(

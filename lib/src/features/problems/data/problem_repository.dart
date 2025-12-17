@@ -1,7 +1,10 @@
 // lib/src/features/problems/data/problem_repository.dart
 
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/storage_service.dart';
 import 'problem_model.dart';
 
 class ProblemRepository {
@@ -10,7 +13,72 @@ class ProblemRepository {
   ProblemRepository({SupabaseClient? client})
       : supabase = client ?? SupabaseService.client;
 
-  // ================== PAGINATION ==================
+  // ============================================================
+  // 🟢 CREATE PROBLEM + IMAGES (NOUVEAU – N'ÉCRASE RIEN)
+  // ============================================================
+
+  Future<void> createProblemWithImages({
+    required String title,
+    required String description,
+    required String categoryId,
+    required String statutId,
+    required String userId,
+    double? latitude,
+    double? longitude,
+    required List<File> images,
+  }) async {
+    // 1️⃣ Create problem
+    final problem = await supabase
+        .from('problemes')
+        .insert({
+      'titre': title,
+      'description': description,
+      'id_categorie': categoryId,
+      'id_statut': statutId,
+      'id_utilisateur_affecte': userId,
+      'latitude': latitude,
+      'longitude': longitude,
+    })
+        .select()
+        .single();
+
+    final String problemId = problem['id'];
+
+    // 2️⃣ Upload images (Storage)
+    if (images.isNotEmpty) {
+      final List<String> urls = [];
+
+      for (int i = 0; i < images.length; i++) {
+        final url = await StorageService.uploadProblemImage(
+          file: images[i],
+          userId: userId,
+          problemId: problemId,
+          index: i,
+        );
+        urls.add(url);
+      }
+
+      // 3️⃣ Create media_url
+      final media = await supabase
+          .from('media_url')
+          .insert({
+        'url': urls.first, // image principale
+        'type': 'image',
+      })
+          .select()
+          .single();
+
+      // 4️⃣ Link image to problem
+      await supabase
+          .from('problemes')
+          .update({'id_media_url': media['id']})
+          .eq('id', problemId);
+    }
+  }
+
+  // ============================================================
+  // 📄 FETCH PAGE (OBLIGATOIRE – utilisé partout)
+  // ============================================================
 
   Future<List<Problem>> fetchPage({
     required int pageIndex,
@@ -28,7 +96,9 @@ class ProblemRepository {
     return _mapList(res);
   }
 
-  // ================== BY ID ==================
+  // ============================================================
+  // 🔍 FETCH BY ID
+  // ============================================================
 
   Future<Problem> fetchById(String id) async {
     final res = await supabase
@@ -44,19 +114,23 @@ class ProblemRepository {
     return _mapOne(res);
   }
 
-  // ================== MES SIGNALEMENTS (FIX FINAL) ==================
+  // ============================================================
+  // 👤 MES SIGNALEMENTS
+  // ============================================================
 
   Future<List<Problem>> fetchByReporter(String userId) async {
     final res = await supabase
         .from('problemes')
         .select('*, statut:statut_pb(*), media_url(*)')
-        .eq('id_utilisateur_affecte', userId) // ✅ SEULE COLONNE EXISTANTE
+        .eq('id_utilisateur_affecte', userId)
         .order('create_at', ascending: false);
 
     return _mapList(res);
   }
 
-  // ================== INSERT ==================
+  // ============================================================
+  // ➕ INSERT SIMPLE (compatibilité ancien code)
+  // ============================================================
 
   Future<Problem> add(Problem p) async {
     final res = await supabase
@@ -72,37 +146,39 @@ class ProblemRepository {
     return _mapOne(res);
   }
 
-  // ================== MAPPERS ==================
+  // ============================================================
+  // 🧠 MAPPERS
+  // ============================================================
 
   List<Problem> _mapList(dynamic res) {
     if (res is! List) return [];
 
-    return res.map<Problem>((e) {
-      final row = Map<String, dynamic>.from(e);
+    return res.map<Problem>((row) {
+      final map = Map<String, dynamic>.from(row);
 
-      // image
-      if (row['media_url'] != null && row['media_url']['url'] != null) {
-        row['images'] = [row['media_url']['url']];
+      if (map['media_url'] != null && map['media_url']['url'] != null) {
+        map['images'] = [map['media_url']['url']];
       }
 
-      // statut
-      if (row['statut'] != null && row['statut']['code'] != null) {
-        row['status'] = row['statut']['code'];
+      if (map['statut'] != null && map['statut']['code'] != null) {
+        map['status'] = map['statut']['code'];
       }
 
-      return Problem.fromMap(row);
+      return Problem.fromMap(map);
     }).toList();
   }
 
   Problem _mapOne(Map<String, dynamic> row) {
-    if (row['media_url'] != null && row['media_url']['url'] != null) {
-      row['images'] = [row['media_url']['url']];
+    final map = Map<String, dynamic>.from(row);
+
+    if (map['media_url'] != null && map['media_url']['url'] != null) {
+      map['images'] = [map['media_url']['url']];
     }
 
-    if (row['statut'] != null && row['statut']['code'] != null) {
-      row['status'] = row['statut']['code'];
+    if (map['statut'] != null && map['statut']['code'] != null) {
+      map['status'] = map['statut']['code'];
     }
 
-    return Problem.fromMap(row);
+    return Problem.fromMap(map);
   }
 }

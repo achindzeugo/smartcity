@@ -16,21 +16,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<_OnboardData> pages = const [
     _OnboardData(
       image: 'assets/images/onboarding1.png',
-      title: 'Your Trusted Guide in Times of Disaster',
+      title: 'Votre guide de confiance en cas de catastrophe',
       description:
-      'Discover peace of mind with real-time guidance and resources designed to keep you safe.',
+      'Découvrez la tranquillité d\'esprit avec des conseils et des ressources en temps réel conçus pour vous protéger.',
     ),
     _OnboardData(
       image: 'assets/images/onboarding2.jpg',
-      title: 'Empowering Safety, One Step at a Time',
+      title: 'Renforcer la sécurité, une étape à la fois',
       description:
-      'Stay one step ahead in any emergency with tailored solutions that protect you and your loved ones.',
+      'Gardez une longueur d\'avance dans toute urgence avec des solutions sur mesure qui vous protègent, vous et vos proches.',
     ),
     _OnboardData(
       image: 'assets/images/onboarding3.png',
-      title: 'Preparedness at Your Fingertips',
+      title: 'La préparation à portée de main',
       description:
-      'Take charge of your safety with expert tools and advice that prepare you for the unexpected.',
+      'Prenez en charge votre sécurité avec des outils et des conseils d\'experts qui vous préparent à l\'imprévu.',
     ),
   ];
 
@@ -199,8 +199,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               onPressed: _onNext,
                               child: Text(
                                 _pageIndex == pages.length - 1
-                                    ? 'Get Started'
-                                    : 'Continue',
+                                    ? 'Commencer'
+                                    : 'Continuer',
                                 style: TextStyle(
                                   fontSize: buttonFontSize / textScale,
                                   fontWeight: FontWeight.w600,
@@ -217,7 +217,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             children: [
                               TextButton(
                                 onPressed: _onSkip,
-                                child: const Text('Skip'),
+                                child: const Text('Passer'),
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
@@ -231,7 +231,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   }
                                 },
                                 child: Text(
-                                  'Back',
+                                  'Retour',
                                   style: TextStyle(
                                     color: Colors.green.shade700,
                                   ),

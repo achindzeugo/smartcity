@@ -1,5 +1,6 @@
 // lib/src/shared/widgets/problem_list.dart
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
@@ -24,19 +25,7 @@ class ProblemList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // si limit est défini et < items.length → on tronque
-    final List<Problem> list;
-    if (limit != null && limit! < items.length) {
-      list = items.sublist(0, limit!);
-    } else {
-      list = items;
-    }
-
-    final List<String> incidentImages = [
-      'assets/images/onboarding1.png',
-      'assets/images/onboarding2.jpg',
-      'assets/images/onboarding3.png',
-    ];
+    final list = (limit != null && limit! < items.length) ? items.sublist(0, limit!) : items;
 
     if (list.isEmpty) {
       return Center(
@@ -57,15 +46,53 @@ class ProblemList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final p = list[i];
-        final imagePath = incidentImages[i % incidentImages.length];
 
-        final createdAt =
-            '${p.createdAt.day.toString().padLeft(2, '0')}/'
-            '${p.createdAt.month.toString().padLeft(2, '0')}/'
-            '${p.createdAt.year}';
+        final createdAt = '${p.createdAt.day.toString().padLeft(2, '0')}/${p.createdAt.month.toString().padLeft(2, '0')}/${p.createdAt.year}';
 
-        final categoryLabel =
-        p.category.replaceAll('_', ' '); // ex: nid_de_poule → nid de poule
+        final categoryLabel = p.category.replaceAll('_', ' ');
+
+        Widget imageWidget;
+        if (p.images.isNotEmpty) {
+          final imagePath = p.images.first;
+          if (imagePath.startsWith('assets/')) {
+            imageWidget = Image.asset(
+              imagePath,
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 64,
+                  height: 64,
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                );
+              },
+            );
+          } else {
+            imageWidget = Image.file(
+              File(imagePath),
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 64,
+                  height: 64,
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                );
+              },
+            );
+          }
+        } else {
+          imageWidget = Container(
+            width: 64,
+            height: 64,
+            color: Colors.grey.shade200,
+            child: const Icon(Icons.image, color: Colors.grey),
+          );
+        }
 
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -74,12 +101,7 @@ class ProblemList extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(10.0),
-              child: Image.asset(
-                imagePath,
-                width: 64,
-                height: 64,
-                fit: BoxFit.cover,
-              ),
+              child: imageWidget,
             ),
             title: Text(
               p.title,
@@ -90,15 +112,14 @@ class ProblemList extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              '${p.category} • ${p.createdAt.day}/${p.createdAt.month}/${p.createdAt.year}',
+              '${categoryLabel.toUpperCase()} • $createdAt',
               style: const TextStyle(fontSize: 12),
             ),
-
             trailing: showTrailingIcon
                 ? IconButton(
-              icon: const Icon(Icons.arrow_forward_rounded),
-              onPressed: () => context.push('/problem/${p.id}'),
-            )
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    onPressed: () => context.push('/problem/${p.id}'),
+                  )
                 : null,
             onTap: () => context.push('/problem/${p.id}'),
           ),
